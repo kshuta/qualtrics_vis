@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -18,14 +19,23 @@ import (
 func main() {
 	godotenv.Load()
 
-	apiToken := os.Getenv("API_TOKEN")
-	surveyId := os.Getenv("SURVEY_ID")
-	dataCenter := os.Getenv("DATA_CENTER_ID")
-	fileFormat := os.Getenv("FILE_FORMAT")
+	// apiToken := os.Getenv("API_TOKEN")
+	// surveyId := os.Getenv("SURVEY_ID")
+	// dataCenter := os.Getenv("DATA_CENTER_ID")
+	// fileFormat := os.Getenv("FILE_FORMAT")
 
-	if err := exportSurvey(apiToken, surveyId, dataCenter, fileFormat); err != nil {
-		logger.Fatalln(err)
+	// if err := exportSurvey(apiToken, surveyId, dataCenter, fileFormat); err != nil {
+	// 	logger.Fatalln(err)
+	// }
+
+	// run python script
+	cmd := exec.Command("python3", "process_data.py", "data.csv")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	logger.Println(string(out))
 }
 
 const baseUrl = "https://%s.qualtrics.com/API/v3/surveys/%s/export-responses"
