@@ -5,6 +5,7 @@ import os
 import datetime
 import collections
 import sys
+import sqlite3
 
 if (os.getcwd() == '/home/jovyan'):
     os.chdir('work/qualtrics_analysis/nov_2021')
@@ -76,38 +77,13 @@ def merge_questions_3(data : pd.DataFrame) -> pd.DataFrame:
 def import_data(filename):
     return pd.read_csv(filename)
 
-def main(month: str, year: str, write: bool, fName: str) :
-    # health = import_data(f"{month}_{year}_health.csv")
-    # career = import_data(f"{month}_{year}_career.csv")
-    # academic = import_data(f"{month}_{year}_academic.csv")
-    # peer_and_beck = import_data(f"{month}_{year}_peer.csv")
-
-
-    # ## data clean up
-    # health.rename(columns={"Q3.4":"Q3"}, inplace=True)
-    # career.rename(columns={"Q3.2":"Q3"}, inplace=True)
-    # academic.rename(columns={"Q3.3":"Q3"}, inplace=True)
-    # peer_and_beck.rename(columns={"Q3.5":"Q3"}, inplace=True)
-
-    # df_dict = {
-    #     "health" : health,
-    #     "career" : career,
-    #     "academic": academic, 
-    #     "peer_and_bec": peer_and_beck,
-    # }
-
-    # for key, val in df_dict.items():
-    #     df_dict[key] = initial_cleanup(val)
-    #     df_dict[key].head()
-
-    ## merge old and new data
+def main(month: str, year: str, write: bool, fName: str):
     new_data = import_data(fName)
     data = new_initial_cleanup(new_data)
-    # print(data.head())
 
     data = merge_questions_3(data)
 
-    print(data.head())
+    ## filter data for month
 
     df_dict = dict()
     df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
@@ -118,15 +94,38 @@ def main(month: str, year: str, write: bool, fName: str) :
     counters = dict()
     for key, df in df_dict.items():
         counters[key] = get_counter(df['Q3'])
-    counters
-    
-    
 
-    if write:
-        for key, dic in counters.items():
-            tm = datetime.datetime.now().time().strftime("%H%M")
-            pd.DataFrame.from_dict(dic, orient="index").to_excel(f"{key}_{month}_{year}_{tm}.xlsx")
 
-    return counters, df_dict
+    if not os.path.exists("sqlite.db"):
+        con = sqlite3.connect('sqlite.db') 
+        cur = con.cursor()
+        cur.execute('''CREATE TABLE records 
+        (
+            id integer not null primary key autoincrement, 
+            department text, 
+            month text, 
+            year text);
+        ''')
+        cur.execute('''CREATE TABLE topic_counts (
+            record_id integer,
+            topic text, 
+            count integer,
+            FOREIGN KEY (record_id) REFERENCES records(id)
+            );''')
+    else :
+        con = sqlite3.connect("sqlite.db")
+        cur = con.cursor()
 
-counters, df_dict = main("dec", "2021", True, sys.argv[1])
+    for dep, dic in counters.items():
+        stmt = f'insert into records (department, month, year) values ("{dep}", "{month}", "{year}");'
+        cur.execute(stmt)
+        id = cur.lastrowid
+        for topic, val in dic.items():
+            stmt = f'insert into topic_counts (record_id, topic, count) values ({id}, "{topic}", "{val}");'
+            cur.execute(stmt)
+            
+            
+    con.commit()
+    con.close()
+
+main("dec", "2021", True, sys.argv[1])
