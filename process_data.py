@@ -102,14 +102,16 @@ def main(month: str, year: str, write: bool, fName: str):
         cur.execute('''CREATE TABLE records 
         (
             id integer not null primary key autoincrement, 
-            department text, 
-            month text, 
-            year text);
+            department text not null, 
+            month text not null, 
+            year text not null,
+            unique(month, year, department)
+        );
         ''')
         cur.execute('''CREATE TABLE topic_counts (
-            record_id integer,
-            topic text, 
-            count integer,
+            record_id integer not null,
+            topic text not null, 
+            count integer not null,
             FOREIGN KEY (record_id) REFERENCES records(id)
             );''')
     else :
