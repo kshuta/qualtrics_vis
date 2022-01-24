@@ -70,12 +70,23 @@ def merge_questions_3(data : pd.DataFrame) -> pd.DataFrame:
     data["Q3"] = data[question_list].apply(lambda x : ",".join(x[x.notnull()]), axis=1)
 
     return data
+
+def filter_date(data: pd.DataFrame, month : str, year : str) -> pd.DataFrame:
+    start = f'{year}-{month}-01'
+    end = f'{year}-{month}-31'
+    pd.to_datetime(data["StartDate"])
+    data = data[(data["StartDate"] > start) & (data["StartDate"] < end)]
+
+    return data
     
 
     
 
 def import_data(filename):
     return pd.read_csv(filename)
+
+
+# add/append data if it already exists 
 
 def main(month: str, year: str, write: bool, fName: str):
     new_data = import_data(fName)
@@ -89,7 +100,7 @@ def main(month: str, year: str, write: bool, fName: str):
     df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
     df_dict['career'] = data[data['Q1'] == 'Career Advising']
     df_dict['academic'] = data[data['Q1'] == 'Academic Advising']
-    df_dict['peer_and_bec'] = data[data['Q1'] == 'Peer advising']
+    df_dict['peer'] = data[data['Q1'] == 'Peer advising']
     
     counters = dict()
     for key, df in df_dict.items():
@@ -130,4 +141,4 @@ def main(month: str, year: str, write: bool, fName: str):
     con.commit()
     con.close()
 
-main("dec", "2021", True, sys.argv[1])
+main("12", "2021", True, sys.argv[1])

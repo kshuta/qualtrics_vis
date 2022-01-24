@@ -2,3 +2,4 @@
 *.xlsx
 *.csv
 qualtrics_vis
+.db
