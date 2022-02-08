@@ -9,7 +9,6 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -34,7 +33,7 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	godotenv.Load()
+	// godotenv.Load()
 
 	// apiToken := os.Getenv("API_TOKEN")
 	// surveyId := os.Getenv("SURVEY_ID")
@@ -104,6 +103,8 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 var pieChart = `
 {{ define "script" }}
+
+document.getElementsByName("chart-selection")[0].setAttribute("selected", "selected")
 const myChart = new Chart(ctx, {
     type: 'pie',
     plugins: [ChartDataLabels],
@@ -162,6 +163,7 @@ const myChart = new Chart(ctx, {
 
 var barChart = `
 {{ define "script" }}
+document.getElementsByName("chart-selection")[1].setAttribute("selected", "selected")
 const myChart = new Chart(ctx, {
     type: 'bar',
     plugins: [ChartDataLabels],
@@ -204,6 +206,7 @@ const myChart = new Chart(ctx, {
 
 var radarChart = `
 	{{ define "script" }}
+	document.getElementsByName("chart-selection")[2].setAttribute("selected", "selected")
 	const myChart = new Chart(ctx, {
 		type: 'radar',
 		plugins: [ChartDataLabels],

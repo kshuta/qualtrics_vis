@@ -88,13 +88,14 @@ def import_data(filename):
 
 # add/append data if it already exists 
 
-def main(month: str, year: str, write: bool, fName: str):
+def main(month: str, year: str , fName: str):
     new_data = import_data(fName)
     data = new_initial_cleanup(new_data)
 
     data = merge_questions_3(data)
 
     ## filter data for month
+    data = filter_date(data, month, year)
 
     df_dict = dict()
     df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
@@ -141,4 +142,4 @@ def main(month: str, year: str, write: bool, fName: str):
     con.commit()
     con.close()
 
-main("12", "2021", True, sys.argv[1])
+main(sys.argv[1], sys.argv[2], "data.csv")

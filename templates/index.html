@@ -23,7 +23,7 @@
             <h3>No data to show for the selected fields</h3>
         {{ else }}
             <div class="chart-container" style="position: relative; height:80vh; width:80vw">
-                <h2>Topics discussed in {{ .Department }} appointments (ratio)</h2>
+                <h2>Topics discussed in {{ .Department }} advising appointments (ratio)</h2>
                 <canvas id="myChart"></canvas>
             </div>
         {{ end }}
@@ -33,23 +33,23 @@
                     <div class="col-md-3">
                         <label class="form-label">Kind of chart</label>
                         <select name="graph-type" class="form-select">
-                            <option value="pie">Pie Chart</option>
-                            <option value="bar">Horizontal Bar Chart</option>
-                            <option value="radar">Radar Chart</option>
+                            <option name="chart-selection" value="pie" >Pie Chart</option>
+                            <option name="chart-selection" value="bar">Horizontal Bar Chart</option>
+                            <option name="chart-selection" value="radar">Radar Chart</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Advising type</label>
                         <select name="advising-type" class="form-select">
-                            <option value="academic">Academic Advising</option>
-                            <option value="career">Career Advising</option>
-                            <option value="peer">Peer Advising</option>
-                            <option value="intern">Internship Advising</option>
+                            <option value="academic" {{ if eq .Department "academic" }} selected {{end}}>Academic Advising</option>
+                            <option value="career" {{ if eq .Department "career" }} selected {{end}}>Career Advising</option>
+                            <option value="peer" {{ if eq .Department "peer" }} selected {{end}}>Peer Advising</option>
+                            <option value="intern" {{ if eq .Department "peer" }} selected {{end}} >Internship Advising</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Month/Year</label>
-                        <input name="m-y" type="month" class="form-control">
+                        <input name="m-y" type="month" class="form-control" value="{{ .Year }}-{{ .Month }}">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">Submit</button>
