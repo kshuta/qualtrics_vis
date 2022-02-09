@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -65,10 +67,16 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		advisingType = "academic"
 	}
 
+	time.Now()
+
 	var year, month string
 	if period == "" {
-		year = "2021"
-		month = "12"
+		t := time.Now()
+		year = strconv.Itoa(t.Year())
+		month = strconv.Itoa(int(t.Month()))
+		if len(month) == 1 {
+			month = "0" + month
+		}
 	} else {
 		tmp := strings.Split(period, "-")
 		fmt.Println(tmp)
@@ -79,8 +87,16 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Println(err)
 	}
+	prevMonth, prevYear, err := getPrevMonth(month, year)
+	if err != nil {
+		logger.Println(err)
+	}
 
-	// t, err := template.ParseFiles("templates/index.html", "templates/pie.html")
+	prevRecord, err := getPrevRecord(advisingType, prevMonth, prevYear, record)
+	if err != nil {
+		logger.Println(err)
+	}
+
 	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {
 		logger.Fatal(err)
@@ -97,22 +113,30 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		logger.Fatal(err)
 	}
 
-	t.ExecuteTemplate(w, "index.html", record)
+	getStringFields(&record)
+	getStringFields(&prevRecord)
+
+	// logger.Println(record)
+	logger.Println(prevRecord)
+	t.ExecuteTemplate(w, "index.html", []Record{record, prevRecord})
 
 }
 
 var pieChart = `
 {{ define "script" }}
 
+{{ $record := index . 0 }}
+{{ $prevRecord := index . 1}}
+
 document.getElementsByName("chart-selection")[0].setAttribute("selected", "selected")
 const myChart = new Chart(ctx, {
     type: 'pie',
     plugins: [ChartDataLabels],
     data: {
-        labels: {{ .TopicsString }},
+        labels: {{ $record.TopicsString }},
         datasets: [{
-			label: {{ .Month }} + "/" + {{ .Year }},
-            data: {{ .CountsString }},
+			label: {{ $record.Month }} + "/" + {{ $record.Year }},
+            data: {{ $record.CountsString }},
             backgroundColor: [
                 'rgba(255, 99, 132, 0.2)',
                 'rgba(54, 162, 235, 0.2)',
@@ -145,7 +169,7 @@ const myChart = new Chart(ctx, {
                 },
                 formatter: function(value, context) {
                     if (context.dataIndex <= 3) {
-                        return context.chart.data.labels[context.dataIndex] + "\n" + Math.ceil(value/{{ .TotalCount }}*100) + "%";
+                        return context.chart.data.labels[context.dataIndex] + "\n" + Math.ceil(value/{{ $record.TotalCount }}*100) + "%";
                     } else {
                         return "";
                     }
@@ -163,15 +187,20 @@ const myChart = new Chart(ctx, {
 
 var barChart = `
 {{ define "script" }}
+
+{{ $record := index . 0 }}
+{{ $prevRecord := index . 1}}
+
 document.getElementsByName("chart-selection")[1].setAttribute("selected", "selected")
 const myChart = new Chart(ctx, {
     type: 'bar',
     plugins: [ChartDataLabels],
     data: {
-        labels: {{ .TopicsString }},
-        datasets: [{
-			label: {{ .Month }} + "/" + {{ .Year }},
-            data: {{ .CountsString }},
+        labels: {{ $record.TopicsString }},
+        datasets: [
+		{
+			label: {{ $record.Month }} + "/" + {{ $record.Year }},
+            data: {{ $record.CountsString }},
             backgroundColor: [
                 'rgba(255, 99, 132, 0.2)',
             ],
@@ -179,7 +208,19 @@ const myChart = new Chart(ctx, {
                 'rgba(255, 99, 132, 1)',
             ],
             borderWidth: 1
-        }
+        },
+		{{ if not $prevRecord.Empty }}
+		{
+			label: {{ $prevRecord.Month }} + "/" + {{ $prevRecord.Year }},
+			data: {{ $prevRecord.CountsString }},
+			backgroundColor: [
+				'rgba(54, 162, 235, 1)',
+			],
+			borderColor: [
+				'rgba(54, 162, 235, 1)',
+			]
+		}
+		{{ end }}
 		]
     },
     options: {
@@ -206,15 +247,19 @@ const myChart = new Chart(ctx, {
 
 var radarChart = `
 	{{ define "script" }}
+
+	{{ $record := index . 0 }}
+	{{ $prevRecord := index . 1}}
+
 	document.getElementsByName("chart-selection")[2].setAttribute("selected", "selected")
 	const myChart = new Chart(ctx, {
 		type: 'radar',
 		plugins: [ChartDataLabels],
 		data: {
-			labels: {{ .TopicsString }},
+			labels: {{ $record.TopicsString }},
 			datasets: [{
-				label: {{ .Month }} + "/" + {{ .Year }},
-				data: {{ .CountsString }},
+				label: {{ $record.Month }} + "/" + {{ $record.Year }},
+				data: {{ $record.CountsString }},
 				backgroundColor: [
 					'rgba(255, 99, 132, 0.2)',
 					'rgba(54, 162, 235, 0.2)',
@@ -246,7 +291,6 @@ var radarChart = `
 						weight: 'bold'
 					},
 					textAlign: 'center',
-	
 				},
 			},
 			responsive: true,
@@ -255,6 +299,29 @@ var radarChart = `
 		});
 	{{end}}
 `
+
+func getPrevMonth(month, year string) (string, string, error) {
+	ipm, err := strconv.Atoi(month)
+	if err != nil {
+		return "", "", err
+	}
+	if ipm-1 >= 1 {
+		if ipm-1 < 10 {
+			return "0" + strconv.Itoa(ipm-1), year, nil
+		} else {
+			return strconv.Itoa(ipm - 1), year, nil
+		}
+	}
+
+	ipm = 12
+	ipy, err := strconv.Atoi(year)
+	if err != nil {
+		return "", "", err
+	}
+
+	return strconv.Itoa(ipm), strconv.Itoa(ipy - 1), nil
+
+}
 
 func setupDB() func() {
 	var err error
@@ -279,7 +346,34 @@ func getCompleteRecord(department, month, year string) (Record, error) {
 	}
 
 	getTotalCount(&record)
-	getStringFields(&record)
+
+	return record, nil
+}
+
+func getPrevRecord(department, month, year string, target Record) (Record, error) {
+	record, err := getRecord(department, month, year)
+	if err != nil {
+		record.Empty = true
+		return record, err
+	}
+
+	err = getTopicCounts(&record)
+	if err != nil {
+		return record, err
+	}
+
+	record.Counts = make([]int, len(target.Counts))
+
+	for idx, topic := range target.Topics {
+		val, ok := record.TopicCounts[topic]
+		if ok {
+			record.Counts[idx] = val
+		} else {
+			record.Counts[idx] = 0
+		}
+	}
+
+	getTotalCount(&record)
 
 	return record, nil
 }
@@ -317,7 +411,6 @@ func getTotalCount(record *Record) {
 
 	if record.TotalCount == 0 {
 		record.Empty = true
-	} else {
 	}
 }
 

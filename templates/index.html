@@ -18,12 +18,14 @@
 </style>
 <body> 
 
+    {{ $record := index . 0 }}
+
     <div class="container">
-        {{ if .Empty }}
+        {{ if $record.Empty }}
             <h3>No data to show for the selected fields</h3>
         {{ else }}
             <div class="chart-container" style="position: relative; height:80vh; width:80vw">
-                <h2>Topics discussed in {{ .Department }} advising appointments (ratio)</h2>
+                <h2>Topics discussed in {{ $record.Department }} advising appointments </h2>
                 <canvas id="myChart"></canvas>
             </div>
         {{ end }}
@@ -41,15 +43,15 @@
                     <div class="col-md-3">
                         <label class="form-label">Advising type</label>
                         <select name="advising-type" class="form-select">
-                            <option value="academic" {{ if eq .Department "academic" }} selected {{end}}>Academic Advising</option>
-                            <option value="career" {{ if eq .Department "career" }} selected {{end}}>Career Advising</option>
-                            <option value="peer" {{ if eq .Department "peer" }} selected {{end}}>Peer Advising</option>
-                            <option value="intern" {{ if eq .Department "peer" }} selected {{end}} >Internship Advising</option>
+                            <option value="academic" {{ if eq $record.Department "academic" }} selected {{end}}>Academic Advising</option>
+                            <option value="career" {{ if eq $record.Department "career" }} selected {{end}}>Career Advising</option>
+                            <option value="peer" {{ if eq $record.Department "peer" }} selected {{end}}>Peer Advising</option>
+                            <option value="intern" {{ if eq $record.Department "peer" }} selected {{end}} >Internship Advising</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Month/Year</label>
-                        <input name="m-y" type="month" class="form-control" value="{{ .Year }}-{{ .Month }}">
+                        <input name="m-y" type="month" class="form-control" value="{{ $record.Year }}-{{ $record.Month }}">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">Submit</button>
@@ -62,6 +64,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
 const ctx = document.getElementById('myChart').getContext('2d');
-{{ template "script" .}}
+{{ template "script" . }}
 </script>
 </html>
