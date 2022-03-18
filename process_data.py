@@ -6,6 +6,7 @@ import datetime
 import collections
 import sys
 import sqlite3
+from datetime import datetime
 
 if (os.getcwd() == '/home/jovyan'):
     os.chdir('work/qualtrics_analysis/nov_2021')
@@ -67,7 +68,7 @@ def merge_questions_3(data : pd.DataFrame) -> pd.DataFrame:
     ## merge questions 3
     question_list = ["Q3_1", "Q3_2", "Q3_24", "Q3_3", "Q3_8", "Q3_9", "Q3_10", "Q3_11", "Q3_13", "Q3_14", "Q3_22", "Q3_25", "Q3_26", "Q3_27", "Q3_28", "Q3_29", "Q3_31", "Q3_21"]
 
-    data["Q3"] = data[question_list].apply(lambda x : ",".join(x[x.notnull()]), axis=1)
+    data.loc[ : ,"Q3"] = data[question_list].apply(lambda x : ",".join(x[x.notnull()]), axis=1)
 
     return data
 
@@ -81,34 +82,27 @@ def filter_date(data: pd.DataFrame, month : str, year : str) -> pd.DataFrame:
     return data
     
 
-    
-
 def import_data(filename):
     return pd.read_csv(filename)
 
+def addYearAndMonth(data : pd.DataFrame) -> pd.DataFrame :
+    data.loc[:, "StartDate"] = pd.to_datetime(data.StartDate)
+    data["StartMonth"] = data.StartDate.dt.month
+    data["StartYear"] = data.StartDate.dt.year
+    return data
+    
 # add/append data if it already exists 
 
-def main(month: str, year: str , fName: str):
+def main(fName: str):
     new_data = import_data(fName)
-    data = new_initial_cleanup(new_data)
+    new_data = new_initial_cleanup(new_data)
 
-    data = merge_questions_3(data)
+    new_data = merge_questions_3(new_data)
 
     ## filter data for month
-    data = filter_date(data, month, year)
-
-
-    df_dict = dict()
-    df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
-    df_dict['career'] = data[data['Q1'] == 'Career Advising']
-    df_dict['academic'] = data[data['Q1'] == 'Academic Advising']
-    df_dict['peer'] = data[data['Q1'] == 'Peer advising']
-    
-    counters = dict()
-    for key, df in df_dict.items():
-        counters[key] = get_counter(df['Q3'])
-
-
+    ## rather than filtering, we should group it together and add all the grouped months.
+    # data = filter_date(data, month, year)
+    new_data = addYearAndMonth(new_data)
     if not os.path.exists("sqlite.db"):
         con = sqlite3.connect('sqlite.db') 
         cur = con.cursor()
@@ -131,17 +125,37 @@ def main(month: str, year: str , fName: str):
         con = sqlite3.connect("sqlite.db")
         cur = con.cursor()
 
+    for idx, data in new_data.groupby(["StartYear", "StartMonth"]):
+        month = data.StartMonth.iloc[0]
+        year = data.StartYear.iloc[0]
+        print(f'{year} {month}')
+        df_dict = dict()
+        df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
+        df_dict['career'] = data[data['Q1'] == 'Career Advising']
+        df_dict['academic'] = data[data['Q1'] == 'Academic Advising']
+        df_dict['peer'] = data[data['Q1'] == 'Peer advising']
+
+        counters = dict()
+        for key, df in df_dict.items():
+            counters[key] = get_counter(df['Q3'])
+
+
+
     for dep, dic in counters.items():
-        stmt = f'insert into records (department, month, year) values ("{dep}", "{month}", "{year}");'
-        cur.execute(stmt)
-        id = cur.lastrowid
+        stmt = 'insert into records (department, month, year) values (?, ?, ?);'
+        try:
+            cur.execute(stmt, [dep, month, year])
+            id = cur.lastrowid
+        except:
+            id = cur.execute('select id from records where department=? and month=? and year=?;', [dep, month, year])
         for topic, val in dic.items():
-            stmt = f'insert into topic_counts (record_id, topic, count) values ({id}, "{topic}", "{val}");'
-            cur.execute(stmt)
-            
+            stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
+            cur.execute(stmt, [id, topic, val])
+                
             
     con.commit()
     con.close()
 
 
-main(sys.argv[1], sys.argv[2], "data.csv")
+
+main(sys.argv[1])

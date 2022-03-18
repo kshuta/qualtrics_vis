@@ -23,7 +23,7 @@
 
     <div class="container">
             <div class="chart-container" style="position: relative; height:80vh; width:80vw">
-                <h2>Topics discussed in {{ $record.Department }} advising appointments </h2>
+                <h2>Topics discussed in {{ $record.Department }} advising appointments for {{ $record.Year }}/{{ $record.Month }}</h2>
             {{ if $record.Empty }}
                 <h3>No data to show for the selected fields</h3>
             {{ else }}

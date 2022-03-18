@@ -5,16 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
 
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
+var nextMonth time.Month
+var nextYear int
 
 type Server struct {
 	mux  *http.ServeMux
@@ -24,34 +29,54 @@ type Server struct {
 func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.once.Do(func() {
 		a.mux = http.NewServeMux()
-		a.mux.HandleFunc("/home", indexHandlerFunc)
+		a.mux.HandleFunc("/", indexHandlerFunc)
 		a.mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 
 	logger.Println("Request: ", r)
-
 	a.mux.ServeHTTP(w, r)
 }
 
 func main() {
-	// godotenv.Load()
 
-	// apiToken := os.Getenv("API_TOKEN")
-	// surveyId := os.Getenv("SURVEY_ID")
-	// dataCenter := os.Getenv("DATA_CENTER_ID")
-	// fileFormat := os.Getenv("FILE_FORMAT")
+	// fetch data from the api if it's the beginning of a new month.
+	year, month, _ := time.Now().Date()
+	if month == 0 || (month >= nextMonth || year >= nextYear) {
+		// fetch data
+		if err := fetchData(); err != nil {
+			logger.Println(err)
+			logger.Println("Failed to fetch data from api")
+		}
+		nextPeriod := time.Now().AddDate(0, 1, 0)
+		nextYear = nextPeriod.Year()
+		nextMonth = nextPeriod.Month()
 
-	// if err := exportSurvey(apiToken, surveyId, dataCenter, fileFormat); err != nil {
-	// 	logger.Fatalln(err)
-	// }
+		// record to database
+		exec.Command("python3", "process_data.py", "data.csv").Run()
+	}
+
 	df := setupDB()
 	defer df()
 
 	server := Server{}
 
+	logger.Println("Serving at port :4000")
 	logger.Fatal(http.ListenAndServe(":4000", &server))
 
+}
+
+func fetchData() error {
+	godotenv.Load()
+
+	apiToken := os.Getenv("API_TOKEN")
+	surveyId := os.Getenv("SURVEY_ID")
+	dataCenter := os.Getenv("DATA_CENTER_ID")
+	fileFormat := os.Getenv("FILE_FORMAT")
+
+	err := exportSurvey(apiToken, surveyId, dataCenter, fileFormat)
+
+	return err
 }
 
 func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
@@ -74,12 +99,8 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		year = strconv.Itoa(t.Year())
 		month = strconv.Itoa(int(t.Month()))
-		if len(month) == 1 {
-			month = "0" + month
-		}
 	} else {
 		tmp := strings.Split(period, "-")
-		fmt.Println(tmp)
 		year, month = tmp[0], tmp[1]
 	}
 
@@ -425,11 +446,26 @@ func getTotalCount(record *Record) {
 
 func getRecord(department, month, year string) (Record, error) {
 	var record Record
-	stmt := fmt.Sprintf("select * from records where department=%q and month=%q and year=%q", department, month, year)
+
+	i_month, err := strconv.Atoi(month)
+	if err != nil {
+		return record, err
+	}
+	i_year, err := strconv.Atoi(year)
+	if err != nil {
+		return record, err
+	}
+
+	logger.Println(i_month)
+	logger.Println(i_year)
+
+	stmt := fmt.Sprintf("select * from records where department=%q and month=%d and year=%d", department, i_month, i_year)
+
+	logger.Println(stmt)
 	row := db.QueryRow(stmt)
 
 	record.TopicCounts = make(TopicCounts)
-	err := row.Scan(&record.Id, &record.Department, &record.Month, &record.Year)
+	err = row.Scan(&record.Id, &record.Department, &record.Month, &record.Year)
 	if err != nil {
 		return record, err
 	}

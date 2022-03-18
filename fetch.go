@@ -15,12 +15,18 @@ import (
 
 const baseUrl = "https://%s.qualtrics.com/API/v3/surveys/%s/export-responses"
 
-var logger = log.New(os.Stderr, "logger: ", log.LstdFlags|log.Lshortfile)
+var logger = log.New(os.Stderr, "logger: ", log.Lshortfile)
+
+var continuationToken string
 
 func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
+	// mostly taken from the python code available on Qualtrics dev docs: https://api.qualtrics.com/guides/ZG9jOjg3NzY3Nw-new-survey-response-export-guide
 	// initial request to create zip file
 	headers := map[string]string{"content-type": "application/json", "x-api-token": apiToken}
-	body := map[string]string{"format": "csv", "useLabels": "true"}
+	body := map[string]string{"format": "csv", "useLabels": "true", "allowContinuation": "true"}
+	if continuationToken != "" {
+		body["continuationToken"] = continuationToken
+	}
 	url := parseUrl(dataCenter, surveyId)
 	req, err := getInitialRequest(url, http.MethodPost, headers, body)
 	if err != nil {
@@ -51,6 +57,7 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 	for progressStatus != "complete" && progressStatus != "failed" {
 		time.Sleep(time.Second * 5)
 		if progressStatus == "" {
+			// error
 			logger.Printf("Progress status empty, http status: %d\n", res.StatusCode)
 			body, _ := io.ReadAll(res.Body)
 			logger.Printf("%q", string(body))
@@ -76,6 +83,7 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 		res.Body.Close()
 
 		progressStatus = progResp.Result.Status
+		continuationToken = progResp.Result.ContinuationToken
 	}
 
 	if progressStatus == "failed" {
@@ -171,9 +179,10 @@ func readZipFile(zf *zip.File) ([]byte, error) {
 
 type progressResponse struct {
 	Result struct {
-		ProgressId string `json:"progressId"`
-		Status     string `json:"status"`
-		FileId     string `json:"fileId"`
+		ProgressId        string `json:"progressId"`
+		Status            string `json:"status"`
+		FileId            string `json:"fileId"`
+		ContinuationToken string `json:"continuationToken"`
 	} `json:"result"`
 	Meta struct {
 		RequestId  string `json:"requestId"`
