@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,11 +39,14 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+var fetch = flag.Bool("fetch", false, "flag to determine if we are fetching data from the API or not. Mainly for development")
+
 func main() {
+	flag.Parse()
 
 	// fetch data from the api if it's the beginning of a new month.
 	year, month, _ := time.Now().Date()
-	if month == 0 || (month >= nextMonth || year >= nextYear) {
+	if *fetch && (month == 0 || (month >= nextMonth || year >= nextYear)) {
 		// fetch data
 		if err := fetchData(); err != nil {
 			logger.Println(err)
@@ -53,10 +57,10 @@ func main() {
 		nextMonth = nextPeriod.Month()
 
 		// record to database
-		exec.Command("python3", "process_data.py", "data.csv").Run()
+		exec.Command("python3", "process_data.py", "data.csv", "sqlite.db").Run()
 	}
 
-	df := setupDB()
+	df := setupDB("sqlite3", "./sqlite.db")
 	defer df()
 
 	server := Server{}
@@ -353,9 +357,9 @@ func getPrevMonth(month, year string) (string, string, error) {
 	return strconv.Itoa(ipm), strconv.Itoa(ipy - 1), nil
 }
 
-func setupDB() func() {
+func setupDB(dbname, dbfile string) func() {
 	var err error
-	db, err = sql.Open("sqlite3", "./sqlite.db")
+	db, err = sql.Open(dbname, dbfile)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -432,6 +436,10 @@ func getStringFields(record *Record) {
 	record.TopicsString = string(b)
 	b1, _ := json.Marshal(record.Counts)
 	record.CountsString = string(b1)
+
+	if len(record.Month) == 1 {
+		record.Month = "0" + record.Month
+	}
 }
 
 func getTotalCount(record *Record) {

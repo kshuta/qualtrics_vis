@@ -93,7 +93,7 @@ def addYearAndMonth(data : pd.DataFrame) -> pd.DataFrame :
     
 # add/append data if it already exists 
 
-def main(fName: str):
+def main(fName: str, dbname: str):
     new_data = import_data(fName)
     new_data = new_initial_cleanup(new_data)
 
@@ -103,8 +103,8 @@ def main(fName: str):
     ## rather than filtering, we should group it together and add all the grouped months.
     # data = filter_date(data, month, year)
     new_data = addYearAndMonth(new_data)
-    if not os.path.exists("sqlite.db"):
-        con = sqlite3.connect('sqlite.db') 
+    if not os.path.exists(dbname):
+        con = sqlite3.connect(dbname) 
         cur = con.cursor()
         cur.execute('''CREATE TABLE records 
         (
@@ -116,19 +116,20 @@ def main(fName: str):
         );
         ''')
         cur.execute('''CREATE TABLE topic_counts (
+            id integer not null primary key autoincrement,
             record_id integer not null,
             topic text not null, 
             count integer not null,
             FOREIGN KEY (record_id) REFERENCES records(id)
+            unique(record_id, topic)
             );''')
     else :
-        con = sqlite3.connect("sqlite.db")
+        con = sqlite3.connect(dbname)
         cur = con.cursor()
 
     for idx, data in new_data.groupby(["StartYear", "StartMonth"]):
-        month = data.StartMonth.iloc[0]
-        year = data.StartYear.iloc[0]
-        print(f'{year} {month}')
+        month = str(data.StartMonth.iloc[0])
+        year = str(data.StartYear.iloc[0])
         df_dict = dict()
         df_dict['health'] = data[data['Q1'] == 'Pre-Health advising']
         df_dict['career'] = data[data['Q1'] == 'Career Advising']
@@ -141,16 +142,28 @@ def main(fName: str):
 
 
 
-    for dep, dic in counters.items():
-        stmt = 'insert into records (department, month, year) values (?, ?, ?);'
-        try:
-            cur.execute(stmt, [dep, month, year])
-            id = cur.lastrowid
-        except:
-            id = cur.execute('select id from records where department=? and month=? and year=?;', [dep, month, year])
-        for topic, val in dic.items():
-            stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
-            cur.execute(stmt, [id, topic, val])
+        print(month)
+        print(year)
+        for dep, dic in counters.items():
+            stmt = 'insert into records (department, month, year) values (?, ?, ?);'
+            try:
+                cur.execute(stmt, (dep, month, year))
+                id = cur.lastrowid
+            except:
+                id = cur.execute('select id from records where department=? and month=? and year=?;', [dep, month, year]).fetchone()[0]
+                
+            for topic, val in dic.items():
+                try:
+                    id, count  = cur.execute("select id, count from topic_counts where record_id=? and topic=?;", [id, topic]).fetchone()
+                    type(count)
+                    type(val)
+                    count += val
+                    stmt = 'update topic_counts set count=? where id=?'
+                    cur.execute(stmt, [count, id])
+                except:
+                    count = val
+                    stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
+                    cur.execute(stmt, [id, topic, count])
                 
             
     con.commit()
@@ -158,4 +171,4 @@ def main(fName: str):
 
 
 
-main(sys.argv[1])
+main(sys.argv[1], sys.argv[2])

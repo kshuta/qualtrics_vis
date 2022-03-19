@@ -23,11 +23,11 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 	// mostly taken from the python code available on Qualtrics dev docs: https://api.qualtrics.com/guides/ZG9jOjg3NzY3Nw-new-survey-response-export-guide
 	// initial request to create zip file
 	headers := map[string]string{"content-type": "application/json", "x-api-token": apiToken}
-	body := map[string]string{"format": "csv", "useLabels": "true", "allowContinuation": "true"}
+	body := map[string]interface{}{"format": "csv", "useLabels": "true", "allowContinuation": "true"}
 	if continuationToken != "" {
 		body["continuationToken"] = continuationToken
 	}
-	url := parseUrl(dataCenter, surveyId)
+	url := parseUrl(baseUrl, dataCenter, surveyId)
 	req, err := getInitialRequest(url, http.MethodPost, headers, body)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 			return fmt.Errorf("status response returned %d", res.StatusCode)
 		}
 		logger.Println("Status: ", progressStatus)
-		requestCheckUrl := parseUrl(dataCenter, surveyId, progressId)
+		requestCheckUrl := parseUrl(baseUrl, dataCenter, surveyId, progressId)
 		req, err := getInitialRequest(requestCheckUrl, http.MethodGet, headers, nil)
 		if err != nil {
 			return err
@@ -92,7 +92,7 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 
 	fileId := progResp.Result.FileId
 
-	requestDownloadUrl := parseUrl(dataCenter, surveyId, fileId, "/file")
+	requestDownloadUrl := parseUrl(baseUrl, dataCenter, surveyId, fileId, "/file")
 	req, err = getInitialRequest(requestDownloadUrl, http.MethodGet, headers, nil)
 	if err != nil {
 		return err
@@ -137,7 +137,7 @@ func readContent(body io.ReadCloser) {
 	}
 }
 
-func getInitialRequest(url, method string, headers map[string]string, body map[string]string) (*http.Request, error) {
+func getInitialRequest(url, method string, headers map[string]string, body map[string]interface{}) (*http.Request, error) {
 	// url := fmt.Sprintf(baseUrl, dataCenter, surveyId)
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -156,7 +156,7 @@ func getInitialRequest(url, method string, headers map[string]string, body map[s
 	return req, nil
 }
 
-func parseUrl(dataCenter, surveyId string, paths ...string) string {
+func parseUrl(baseUrl, dataCenter, surveyId string, paths ...string) string {
 	url := fmt.Sprintf(baseUrl, dataCenter, surveyId)
 	for _, path := range paths {
 		url += "/" + path
