@@ -1,4 +1,4 @@
-module github.com/kshuta/qualtrics_vs
+module github.com/kshuta/qualtrics_vis
 
 go 1.17
 
