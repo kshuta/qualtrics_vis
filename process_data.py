@@ -1,3 +1,4 @@
+from tkinter import W
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,8 +6,8 @@ import os
 import datetime
 import collections
 import sys
-import sqlite3
 from datetime import datetime
+import psycopg2
 
 if (os.getcwd() == '/home/jovyan'):
     os.chdir('work/qualtrics_analysis/nov_2021')
@@ -93,41 +94,52 @@ def addYearAndMonth(data : pd.DataFrame) -> pd.DataFrame :
     
 # add/append data if it already exists 
 
-def main(fName: str, dbname: str):
+def main(fName: str):
     new_data = import_data(fName)
     new_data = new_initial_cleanup(new_data)
-
     new_data = merge_questions_3(new_data)
 
     ## filter data for month
     ## rather than filtering, we should group it together and add all the grouped months.
     # data = filter_date(data, month, year)
     new_data = addYearAndMonth(new_data)
-    if os.path.exists:
-        con = sqlite3.connect(dbname)
-        cur = con.cursor()
-        cur.execute('''DROP TABLE records''')
-        cur.execute('''DROP TABLE topic_counts''')
 
-    con = sqlite3.connect(dbname) 
+    ## loading env variables
+    dbname = os.environ.get("POSTGRES_DBNAME")
+    user = os.environ.get("POSTGRES_USER")
+    password = os.environ.get("POSTGRES_PASSWORD")
+    host = os.environ.get("POSTGRES_HOST")
+    port = os.environ.get("POSTGRES_PORT")
+    print("read env")
+    
+    # conneting to postgres db.
+    con = psycopg2.connect(dbname = dbname, user = user, password = password, host = host, port = port)
     cur = con.cursor()
+    print("connected")
+    
+    ## Drop existing information
+    cur.execute("DROP TABLE if exists topic_counts")
+    cur.execute("DROP TABLE if exists records CASCADE")
+    print("droped table ")
+
     cur.execute('''CREATE TABLE records 
     (
-        id integer not null primary key autoincrement, 
-        department text not null, 
-        month text not null, 
-        year text not null,
+        id serial primary key, 
+        department varchar(30) not null, 
+        month varchar(10) not null, 
+        year varchar(10) not null,
         unique(month, year, department)
     );
     ''')
     cur.execute('''CREATE TABLE topic_counts (
-        id integer not null primary key autoincrement,
-        record_id integer not null,
-        topic text not null, 
-        count integer not null,
-        FOREIGN KEY (record_id) REFERENCES records(id)
-        unique(record_id, topic)
+        id serial primary key, 
+        record_id int not null,
+        topic varchar(50) not null, 
+        count int not null,
+        unique(record_id, topic),
+        constraint fk_records foreign key (record_id) references records(id)
         );''')
+    print("created table ")
 
     for idx, data in new_data.groupby(["StartYear", "StartMonth"]):
         month = str(data.StartMonth.iloc[0])
@@ -143,13 +155,14 @@ def main(fName: str, dbname: str):
             counters[key] = get_counter(df['Q3'])
 
         for dep, dic in counters.items():
-            stmt = 'insert into records (department, month, year) values (?, ?, ?);'
-            cur.execute(stmt, (dep, month, year))
-            id = cur.lastrowid
+            print("hello")
+            stmt = 'insert into records (department, month, year) values (%s, %s, %s) returning id;'
+            cur.execute(stmt, [dep, month, year])
+            id = cur.fetchone()[0]
 
             for topic, val in dic.items():
                 count = val
-                stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
+                stmt = 'insert into topic_counts (record_id, topic, count) values (%s, %s, %s);'
                 cur.execute(stmt, [id, topic, count])
                 
             
@@ -157,5 +170,4 @@ def main(fName: str, dbname: str):
     con.close()
 
 
-
-main(sys.argv[1], sys.argv[2])
+main(sys.argv[1])

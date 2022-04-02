@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -39,10 +40,11 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
-var fetch = flag.Bool("fetch", false, "flag to determine if we are fetching data from the API or not. Mainly for development")
+var fetch = flag.Bool("fetch", true, "flag to determine if we are fetching data from the API or not. Mainly for development")
 
 func main() {
 	flag.Parse()
+	godotenv.Load()
 
 	// fetch data from the api if it's the beginning of a new month.
 	year, month, _ := time.Now().Date()
@@ -60,7 +62,7 @@ func main() {
 		exec.Command("python3", "process_data.py", "data.csv", "sqlite.db").Run()
 	}
 
-	df := setupDB("sqlite3", "./sqlite.db")
+	df := setupDB("postgres", "null")
 	defer df()
 
 	server := Server{}
@@ -359,7 +361,14 @@ func getPrevMonth(month, year string) (string, string, error) {
 
 func setupDB(dbname, dbfile string) func() {
 	var err error
-	db, err = sql.Open(dbname, dbfile)
+	const dsnUrlFormat = "postgres://%s:%s@%s:%s/%s?sslmode=disable"
+	if dbname == "sqlite" {
+		db, err = sql.Open(dbname, dbfile)
+	} else if dbname == "postgres" {
+		DNS := fmt.Sprintf(dsnUrlFormat, os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"), os.Getenv("POSTGRES_DBNAME"))
+
+		db, err = sql.Open(dbname, DNS)
+	}
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -467,10 +476,7 @@ func getRecord(department, month, year string) (Record, error) {
 	logger.Println(i_month)
 	logger.Println(i_year)
 
-	stmt := fmt.Sprintf("select * from records where department=%q and month=%d and year=%d", department, i_month, i_year)
-
-	logger.Println(stmt)
-	row := db.QueryRow(stmt)
+	row := db.QueryRow("select * from records where department=$1 and month=$2 and year=$3", department, i_month, i_year)
 
 	record.TopicCounts = make(TopicCounts)
 	err = row.Scan(&record.Id, &record.Department, &record.Month, &record.Year)
