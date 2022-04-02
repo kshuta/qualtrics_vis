@@ -16,7 +16,6 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
@@ -362,13 +361,9 @@ func getPrevMonth(month, year string) (string, string, error) {
 func setupDB(dbname, dbfile string) func() {
 	var err error
 	const dsnUrlFormat = "postgres://%s:%s@%s:%s/%s?sslmode=disable"
-	if dbname == "sqlite" {
-		db, err = sql.Open(dbname, dbfile)
-	} else if dbname == "postgres" {
-		DNS := fmt.Sprintf(dsnUrlFormat, os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"), os.Getenv("POSTGRES_DBNAME"))
+	DNS := fmt.Sprintf(dsnUrlFormat, os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"), os.Getenv("POSTGRES_DBNAME"))
 
-		db, err = sql.Open(dbname, DNS)
-	}
+	db, err = sql.Open(dbname, DNS)
 	if err != nil {
 		logger.Fatal(err)
 	}
