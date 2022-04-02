@@ -17,16 +17,11 @@ const baseUrl = "https://%s.qualtrics.com/API/v3/surveys/%s/export-responses"
 
 var logger = log.New(os.Stderr, "logger: ", log.Lshortfile)
 
-var continuationToken string
-
 func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 	// mostly taken from the python code available on Qualtrics dev docs: https://api.qualtrics.com/guides/ZG9jOjg3NzY3Nw-new-survey-response-export-guide
 	// initial request to create zip file
 	headers := map[string]string{"content-type": "application/json", "x-api-token": apiToken}
-	body := map[string]interface{}{"format": "csv", "useLabels": "true", "allowContinuation": "true"}
-	if continuationToken != "" {
-		body["continuationToken"] = continuationToken
-	}
+	body := map[string]interface{}{"format": "csv", "useLabels": "true"}
 	url := parseUrl(baseUrl, dataCenter, surveyId)
 	req, err := getInitialRequest(url, http.MethodPost, headers, body)
 	if err != nil {
@@ -83,7 +78,6 @@ func exportSurvey(apiToken, surveyId, dataCenter, fileFormat string) error {
 		res.Body.Close()
 
 		progressStatus = progResp.Result.Status
-		continuationToken = progResp.Result.ContinuationToken
 	}
 
 	if progressStatus == "failed" {
@@ -179,10 +173,9 @@ func readZipFile(zf *zip.File) ([]byte, error) {
 
 type progressResponse struct {
 	Result struct {
-		ProgressId        string `json:"progressId"`
-		Status            string `json:"status"`
-		FileId            string `json:"fileId"`
-		ContinuationToken string `json:"continuationToken"`
+		ProgressId string `json:"progressId"`
+		Status     string `json:"status"`
+		FileId     string `json:"fileId"`
 	} `json:"result"`
 	Meta struct {
 		RequestId  string `json:"requestId"`

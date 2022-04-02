@@ -103,29 +103,31 @@ def main(fName: str, dbname: str):
     ## rather than filtering, we should group it together and add all the grouped months.
     # data = filter_date(data, month, year)
     new_data = addYearAndMonth(new_data)
-    if not os.path.exists(dbname):
-        con = sqlite3.connect(dbname) 
-        cur = con.cursor()
-        cur.execute('''CREATE TABLE records 
-        (
-            id integer not null primary key autoincrement, 
-            department text not null, 
-            month text not null, 
-            year text not null,
-            unique(month, year, department)
-        );
-        ''')
-        cur.execute('''CREATE TABLE topic_counts (
-            id integer not null primary key autoincrement,
-            record_id integer not null,
-            topic text not null, 
-            count integer not null,
-            FOREIGN KEY (record_id) REFERENCES records(id)
-            unique(record_id, topic)
-            );''')
-    else :
+    if os.path.exists:
         con = sqlite3.connect(dbname)
         cur = con.cursor()
+        cur.execute('''DROP TABLE records''')
+        cur.execute('''DROP TABLE topic_counts''')
+
+    con = sqlite3.connect(dbname) 
+    cur = con.cursor()
+    cur.execute('''CREATE TABLE records 
+    (
+        id integer not null primary key autoincrement, 
+        department text not null, 
+        month text not null, 
+        year text not null,
+        unique(month, year, department)
+    );
+    ''')
+    cur.execute('''CREATE TABLE topic_counts (
+        id integer not null primary key autoincrement,
+        record_id integer not null,
+        topic text not null, 
+        count integer not null,
+        FOREIGN KEY (record_id) REFERENCES records(id)
+        unique(record_id, topic)
+        );''')
 
     for idx, data in new_data.groupby(["StartYear", "StartMonth"]):
         month = str(data.StartMonth.iloc[0])
@@ -140,30 +142,15 @@ def main(fName: str, dbname: str):
         for key, df in df_dict.items():
             counters[key] = get_counter(df['Q3'])
 
-
-
-        print(month)
-        print(year)
         for dep, dic in counters.items():
             stmt = 'insert into records (department, month, year) values (?, ?, ?);'
-            try:
-                cur.execute(stmt, (dep, month, year))
-                id = cur.lastrowid
-            except:
-                id = cur.execute('select id from records where department=? and month=? and year=?;', [dep, month, year]).fetchone()[0]
-                
+            cur.execute(stmt, (dep, month, year))
+            id = cur.lastrowid
+
             for topic, val in dic.items():
-                try:
-                    id, count  = cur.execute("select id, count from topic_counts where record_id=? and topic=?;", [id, topic]).fetchone()
-                    type(count)
-                    type(val)
-                    count += val
-                    stmt = 'update topic_counts set count=? where id=?'
-                    cur.execute(stmt, [count, id])
-                except:
-                    count = val
-                    stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
-                    cur.execute(stmt, [id, topic, count])
+                count = val
+                stmt = 'insert into topic_counts (record_id, topic, count) values (?, ?, ?);'
+                cur.execute(stmt, [id, topic, count])
                 
             
     con.commit()
