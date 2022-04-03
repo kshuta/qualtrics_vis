@@ -66,8 +66,10 @@ func main() {
 
 	server := Server{}
 
-	logger.Println("Serving at port :4000")
-	logger.Fatal(http.ListenAndServe(":4000", &server))
+	port := fmt.Sprintf(":%s", os.Getenv("PORT"))
+
+	logger.Printf("Serving at port %s\n", port)
+	logger.Fatal(http.ListenAndServe(port, &server))
 
 }
 
