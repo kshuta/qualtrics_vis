@@ -362,7 +362,7 @@ func getPrevMonth(month, year string) (string, string, error) {
 
 func setupDB(dbname, dbfile string) func() {
 	var err error
-	const dsnUrlFormat = "postgres://%s:%s@%s:%s/%s?sslmode=disable"
+	const dsnUrlFormat = "postgres://%s:%s@%s:%s/%s?sslmode=require"
 	DNS := fmt.Sprintf(dsnUrlFormat, os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"), os.Getenv("POSTGRES_DBNAME"))
 
 	db, err = sql.Open(dbname, DNS)
