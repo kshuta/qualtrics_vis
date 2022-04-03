@@ -70,8 +70,12 @@ func fetchData() error {
 func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 	currYear, currMonth, _ := time.Now().Date()
-	if *fetch && (nextMonth == 0 || (currMonth >= nextMonth || currYear >= nextYear)) {
+	if *fetch && (nextMonth == 0 || (currMonth >= nextMonth || currYear > nextYear)) {
 		// fetch data
+		logger.Println("nextMonth: ", nextMonth)
+		logger.Println("nextYear: ", nextYear)
+		logger.Println("currMonth: ", currMonth)
+		logger.Println("currYear: ", currYear)
 		logger.Println("Fetching data")
 		if err := fetchData(); err != nil {
 			logger.Println(err)
