@@ -72,6 +72,7 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	currYear, currMonth, _ := time.Now().Date()
 	if *fetch && (nextMonth == 0 || (currMonth >= nextMonth || currYear >= nextYear)) {
 		// fetch data
+		logger.Println("Fetching data")
 		if err := fetchData(); err != nil {
 			logger.Println(err)
 			logger.Println("Failed to fetch data from api")
