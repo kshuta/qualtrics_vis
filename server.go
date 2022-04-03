@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,13 +55,7 @@ func main() {
 		nextPeriod := time.Now().AddDate(0, 1, 0)
 		nextYear = nextPeriod.Year()
 		nextMonth = nextPeriod.Month()
-
 		// record to database
-		out, err := exec.Command("python", "./process_data.py", "data.csv").Output()
-		if err != nil {
-			logger.Fatal(err)
-		}
-		fmt.Println(string(out))
 	}
 
 	df := setupDB("postgres", "null")
@@ -79,8 +72,8 @@ func main() {
 
 func fetchData() error {
 	// access python api
-	http.Get("https://qualtrics-vis-scripts.herokuapp.com/")
-	return nil
+	_, err := http.Get("https://qualtrics-vis-scripts.herokuapp.com/")
+	return err
 }
 
 func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
