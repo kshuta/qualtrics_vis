@@ -155,7 +155,7 @@ def main(fName: str):
             counters[key] = get_counter(df['Q3'])
 
         for dep, dic in counters.items():
-            print("hello")
+            print("inserting to records")
             stmt = 'insert into records (department, month, year) values (%s, %s, %s) returning id;'
             cur.execute(stmt, [dep, month, year])
             id = cur.fetchone()[0]

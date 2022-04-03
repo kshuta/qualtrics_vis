@@ -58,7 +58,11 @@ func main() {
 		nextMonth = nextPeriod.Month()
 
 		// record to database
-		exec.Command("python3", "process_data.py", "data.csv", "sqlite.db").Run()
+		out, err := exec.Command("python3", "process_data.py", "data.csv", "sqlite.db").Output()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		fmt.Println(string(out))
 	}
 
 	df := setupDB("postgres", "null")
