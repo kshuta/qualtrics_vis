@@ -48,17 +48,6 @@ func main() {
 	godotenv.Load()
 
 	// fetch data from the api if it's the beginning of a new month.
-	year, month, _ := time.Now().Date()
-	if *fetch && (month == 0 || (month >= nextMonth || year >= nextYear)) {
-		// fetch data
-		if err := fetchData(); err != nil {
-			logger.Println(err)
-			logger.Println("Failed to fetch data from api")
-		}
-		nextPeriod := time.Now().AddDate(0, 1, 0)
-		nextYear = nextPeriod.Year()
-		nextMonth = nextPeriod.Month()
-	}
 
 	df := setupDB("postgres", "null")
 	defer df()
@@ -79,6 +68,19 @@ func fetchData() error {
 }
 
 func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
+
+	currYear, currMonth, _ := time.Now().Date()
+	if *fetch && (nextMonth == 0 || (currMonth >= nextMonth || currYear >= nextYear)) {
+		// fetch data
+		if err := fetchData(); err != nil {
+			logger.Println(err)
+			logger.Println("Failed to fetch data from api")
+		}
+		nextPeriod := time.Now().AddDate(0, 1, 0)
+		nextYear = nextPeriod.Year()
+		nextMonth = nextPeriod.Month()
+	}
+
 	r.ParseForm()
 	graphType := r.Form.Get("graph-type")
 	advisingType := r.Form.Get("advising-type")
@@ -90,8 +92,6 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	if advisingType == "" {
 		advisingType = "academic"
 	}
-
-	time.Now()
 
 	var year, month string
 	if period == "" {
