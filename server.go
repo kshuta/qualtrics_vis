@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -25,6 +26,8 @@ type Server struct {
 	mux  *http.ServeMux
 	once sync.Once
 }
+
+var logger = log.New(os.Stderr, "logger: ", log.Lshortfile)
 
 func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.once.Do(func() {
@@ -55,7 +58,6 @@ func main() {
 		nextPeriod := time.Now().AddDate(0, 1, 0)
 		nextYear = nextPeriod.Year()
 		nextMonth = nextPeriod.Month()
-		// record to database
 	}
 
 	df := setupDB("postgres", "null")
@@ -93,7 +95,7 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 	var year, month string
 	if period == "" {
-		t := time.Now()
+		t := time.Now().AddDate(0, -1, 0)
 		year = strconv.Itoa(t.Year())
 		month = strconv.Itoa(int(t.Month()))
 	} else {
