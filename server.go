@@ -134,8 +134,6 @@ func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	getStringFields(&record)
 	getStringFields(&prevRecord)
 
-	// logger.Println(record)
-	logger.Println(prevRecord)
 	t.ExecuteTemplate(w, "index.html", []Record{record, prevRecord})
 
 }
@@ -468,6 +466,7 @@ func getRecord(department, month, year string) (Record, error) {
 	record.TopicCounts = make(TopicCounts)
 	err = row.Scan(&record.Id, &record.Department, &record.Month, &record.Year)
 	if err != nil {
+		logger.Println(err)
 		return record, err
 	}
 
