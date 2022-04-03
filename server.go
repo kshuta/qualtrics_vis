@@ -78,16 +78,9 @@ func main() {
 }
 
 func fetchData() error {
-	godotenv.Load()
-
-	apiToken := os.Getenv("API_TOKEN")
-	surveyId := os.Getenv("SURVEY_ID")
-	dataCenter := os.Getenv("DATA_CENTER_ID")
-	fileFormat := os.Getenv("FILE_FORMAT")
-
-	err := exportSurvey(apiToken, surveyId, dataCenter, fileFormat)
-
-	return err
+	// access python api
+	http.Get("https://qualtrics-vis-scripts.herokuapp.com/")
+	return nil
 }
 
 func indexHandlerFunc(w http.ResponseWriter, r *http.Request) {
