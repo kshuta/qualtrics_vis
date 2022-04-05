@@ -63,7 +63,7 @@ func main() {
 
 func fetchData() error {
 	// access python api
-	_, err := http.Get("https://qualtrics-vis-scripts.herokuapp.com/")
+	_, err := http.Get("https://qualtrics-scripts.herokuapp.com/")
 	return err
 }
 
